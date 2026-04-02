@@ -375,6 +375,7 @@ class VideoDataset(tutils.data.Dataset):
         # self.input_type = input_type
         self.train = train
         self.anno_path = args.ANNO_PATH
+        self.anno_file = args.ANNO_PATH  # alias used by evaluation code
         self._imgpath = args.IMG_PATH
     
         # self.image_sets = image_sets

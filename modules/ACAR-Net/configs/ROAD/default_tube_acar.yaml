@@ -29,7 +29,7 @@ model:
         arch: slowfast50
         learnable: True
         pretrain:
-            path: /road/acar_models/SLOWFAST_R50_K400.pth.tar
+            path: /home/jplu3502/road/acar_models/SLOWFAST_R50_K400.pth.tar
         kwargs:
             alpha: 4
             beta: 0.125
@@ -58,9 +58,9 @@ loss:
         pose_softmax: True
 
 train:
-    root_path: /road/rgb-images
-    annotation_path: /road/road_trainval_v1.0.json
-    class_idx_path: /road/class_name_gen_1.json
+    root_path: /home/jplu3502/road/rgb-images
+    annotation_path: /home/jplu3502/road/road_trainval_v1.0.json
+    class_idx_path: /home/jplu3502/road/class_name_gen_1.json
     batch_size: 8
     workers: 8
         
@@ -112,10 +112,10 @@ train:
         warmup_epochs: 1
 
 val:
-    root_path: /road/rgb-images
-    annotation_path: /road/detections/eval/flow_color_model_fpn_x101_64x4d_finetune_val2_detections_inactive_merged_val2_gt_format_0.1_ocsort.json
-    # annotation_path: /road/road_trainval_v1.0.json
-    class_idx_path: /road/class_name_gen_1.json
+    root_path: /home/jplu3502/road/rgb-images
+    # annotation_path: /home/jplu3502/road/detections/eval/flow_color_model_fpn_x101_64x4d_finetune_val2_detections_inactive_merged_val2_gt_format_0.1_ocsort.json
+    annotation_path: /home/jplu3502/road/road_trainval_v1.0.json
+    class_idx_path: /home/jplu3502/road/class_name_gen_1.json
     # Maxes all ram and about half of GPUs on thor
     # batch_size: 24
     # workers: 20
@@ -143,5 +143,5 @@ val:
     with_label: True # when this is True, eval loss is calculated and logged.
     eval_mAP:
         save_json: False # when this value is True, ACAR will output a json file of ROAD format with action ids appended onto the bboxes
-        labelmap: /road/road_trainval_v1.0.json
-        groundtruth: /road/road_trainval_v1.0.json
+        labelmap: /home/jplu3502/road/road_trainval_v1.0.json
+        groundtruth: /home/jplu3502/road/road_trainval_v1.0.json

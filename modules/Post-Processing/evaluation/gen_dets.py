@@ -212,6 +212,9 @@ def gather_framelevel_detection(args, val_dataset):
 
     for vid, videoname in enumerate(val_dataset.video_list):       
         vid_dir = os.path.join(args.det_save_dir, videoname)
+        if not os.path.isdir(vid_dir):
+            logger.info('[{}/{}] No detections for {} (skipping)'.format(vid, numv, videoname))
+            continue
         frames_list = os.listdir(vid_dir)
         for frame_name in frames_list:
             if not frame_name.endswith('.pkl'):

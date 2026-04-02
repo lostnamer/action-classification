@@ -118,7 +118,7 @@ def read_json(val_split, json_file, class_whitelist=None, load_score=False):
             # only load ground-truth of annotated frames
             if not frame['annotated']:
                 continue
-            image_key = make_image_key(video, frame['input_image_id'])
+            image_key = make_image_key(video, frame.get('input_image_id', frame.get('rgb_image_id')))
             for annon in frame['annos'].values():
                 for label in annon['action_ids']:
                     if class_whitelist and label not in class_whitelist:
@@ -228,7 +228,7 @@ def run_evaluation(opt, labelmap, groundtruth, detections, exclusions, logger):
     start = time.time()
     metrics = pascal_evaluator.evaluate()
     print_time("run_evaluator", start)
-    logger.info("Ratio of preds ignored: {}".format(num_pred_ignored / len(pred_boxes)))
+    logger.info("Ratio of preds ignored: {}".format(num_pred_ignored / len(pred_boxes) if pred_boxes else 0.0))
     logger.info(pprint.pformat(metrics, indent=2))
 
     return metrics

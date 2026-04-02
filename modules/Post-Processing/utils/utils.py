@@ -83,6 +83,20 @@ def set_args(args):
     args.MEANS =[0.485, 0.456, 0.406]
     args.STDS = [0.229, 0.224, 0.225]
 
+    # Parse EVAL_EPOCHS: '10' or '10,20' → [10] or [10, 20]
+    if isinstance(args.EVAL_EPOCHS, str):
+        args.EVAL_EPOCHS = [int(v) for v in args.EVAL_EPOCHS.split(',') if v.strip()]
+    elif isinstance(args.EVAL_EPOCHS, int):
+        args.EVAL_EPOCHS = [args.EVAL_EPOCHS]
+
+    # Parse SUBSETS string if needed
+    if isinstance(args.SUBSETS, str):
+        args.SUBSETS = [v.strip() for v in args.SUBSETS.split(',') if v.strip()]
+
+    # Parse TUBES_EVAL_THRESHS if needed
+    if isinstance(getattr(args, 'TUBES_EVAL_THRESHS', None), str):
+        args.TUBES_EVAL_THRESHS = [float(v) for v in args.TUBES_EVAL_THRESHS.split(',') if v.strip()]
+
     username = getpass.getuser()
     hostname = socket.gethostname()
     args.hostname = hostname

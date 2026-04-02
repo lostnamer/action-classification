@@ -1,0 +1,48 @@
+# Post-Processing config for ACAR-Net output → 3D-RetinaNet-style evaluation
+# Split: moc_car
+
+ANNO_PATH: '/home/jplu3502/road/road_test_v1.0.json'
+IMG_PATH: '/home/jplu3502/road/rgb-images'
+DATASET: 'road'
+SUBSETS: 'moc_car'
+
+MIN_SIZE: 512
+MILESTONES: '20,25'
+SEQ_LEN: 8
+BATCH_SIZE: 4
+MIN_SEQ_STEP: 1
+MAX_SEQ_STEP: 1
+
+MODE: 'eval_external'
+EVAL_EPOCHS: '10'
+
+formatting:
+  prediction_path: '/home/jplu3502/action-classification/modules/ACAR-Net/output/eval_ep10_moc_car/text/predict_epoch_10.csv'
+  save_pickles_path: '/home/jplu3502/action-classification/modules/ACAR-Net/output/eval_ep10_moc_car/acar_pickles'
+
+ACAR_DET_SAVE_DIR: '/home/jplu3502/action-classification/modules/ACAR-Net/output/eval_ep10_moc_car/acar_pickles'
+SAVE_ROOT: '/home/jplu3502/action-classification/modules/ACAR-Net/output/eval_ep10_moc_car'
+
+TOPK: 10
+CLASSWISE_NMS: False
+CONF_THRESH: 0.025
+JOINT_4M_MARGINALS: False
+
+COMPUTE_PATHS: True
+PATHS_IOUTH: 0.5
+PATHS_COST_TYPE: 'score'
+PATHS_JUMP_GAP: 4
+PATHS_MIN_LEN: 6
+PATHS_MINSCORE: 0.1
+
+COMPUTE_TUBES: True
+TUBES_ALPHA: 0
+TRIM_METHOD: 'none'
+TUBES_TOPK: 10
+TUBES_MINLEN: 5
+TUBES_EVAL_THRESHS: '0.2,0.5'
+
+GEN_NMS: 0.5
+TEST_SEQ_LEN: 8
+IOU_THRESH: 0.5
+exp_name: 'ralac_ep10_moc_car'

@@ -7,91 +7,87 @@ from tqdm import tqdm
 
 
 def format_acar_dets(opts):
-    """Uses a path to an acar prediction csv to write .pkl files in the
-    format that the evaluation pipeline expects. 
+    """Reads ACAR prediction CSV and writes per-frame .pkl files in the format
+    that the Post-Processing evaluation pipeline expects.
+
+    CSV format (9 columns, no header):
+        video, frame, xmin, ymin, xmax, ymax, action, confidence, tube_id
+    where:
+        - xmin/ymin/xmax/ymax are in [0,1] normalized coordinates
+        - action is 0-indexed (0..21 for 22 ACAR classes)
 
     MAGIC NUMBERS 512 and 682:
-    RetinaNet input dimensions are 512x682. Literally of the steps of the evaluations
-    have these dimensions hardcoded into them. The most minimal change for us to evaluate properly
-    is to multiply by these magic numbers ourselves in this function. 
+    RetinaNet input dimensions are 512x682.  The evaluation code has these
+    hardcoded, so we scale normalized coords to pixel space here.
+
+    Output pkl format per frame:
+        {'main': ndarray(N, 23)}
+        columns 0-3  : bbox [x1, y1, x2, y2] in pixel space (682 x 512)
+        columns 4-22 : 19 ROAD action class confidence scores
 
     Parameters
     ----------
-    opts : argparse object
-        contains all of the arguments read and initialized in main.py
+    opts : EasyDict
+        Must contain:
+            opts.prediction_path   – path to predict_epoch_*.csv
+            opts.save_pickles_path – directory to write per-video/per-frame pkls
     """
-    # the training data has 22 classes, but the evaluation only considers 19 classes
-    # given a class index form acar, we want to map it to the correct index with respect
-    # to the evaluation. This array has length 22.
+    # ACAR trains on 22 classes; ROAD evaluation uses 19 classes.
+    # Maps ACAR class index (0-indexed, length 22) → ROAD class index (-1 = skip).
+    #   Skipped: Rev(6), MovRht(14), MovLft(15)
     action_class_selection_map = [0, 1, 2, 3, 4, 5, -1, 6, 7, 8, 9, 10, 11, 12, -1, -1, 13, 14, 15, 16, 17, 18]
 
-    # # read predictions csv into dataframe. predict_epoch_{}.csv has no headers.
-    # # columns are {video, frame, xmin, ymin, xmax, ymax, action, confidence} in that order
-    # predictions_df = pd.read_csv(opts.prediction_path, header = None)
-    # predictions_df.columns = ["video", "frame", "xmin", "ymin", "xmax", "ymax", "action", "confidence", "tube_id"]
-    # formatted_predictions = {}
-    # print(f"Formatting predictions from {opts.prediction_path}")
-    # for _, row in tqdm(predictions_df.iterrows()):
-    #     box_hash = f"{row['xmin']}_{row['ymin']}_{row['xmax']}_{row['ymax']}"
-    #     if row['video'] not in formatted_predictions:
-    #         formatted_predictions[row['video']] = {}
-    #     if row['frame'] not in formatted_predictions[row['video']]:
-    #         formatted_predictions[row['video']][row['frame']] = {}
-    #     if box_hash not in formatted_predictions[row['video']][row['frame']]:
-    #         formatted_predictions[row['video']][row['frame']][box_hash] = {
-    #             # Magic number time
-    #             'bbox': [float(row['xmin'])*682, float(row['ymin'])*512, float(row['xmax'])*682, float(row['ymax'])*512],
-    #             'confidences': [0]*19
-    #         }
-    #     # action class is 1 indexed, so subtract 1
-    #     action_idx = action_class_selection_map[int(row['action'])-1]
-    #     if action_idx < 0:
-    #         continue
-    #     formatted_predictions[row['video']][row['frame']][box_hash]['confidences'][action_idx] = float(row['confidence'])
+    print(f"Formatting predictions from {opts.prediction_path}")
 
-    with open(opts.prediction_path, "r") as f:
-        fs = f.read()
-        ann_dict = json.loads(fs)
+    predictions_df = pd.read_csv(opts.prediction_path, header=None)
+    predictions_df.columns = ["video", "frame", "xmin", "ymin", "xmax", "ymax", "action", "confidence", "tube_id"]
+
+    # Group all rows by (video, frame, bbox) to reconstruct per-box confidence vectors
+    formatted_predictions = {}
+    for _, row in tqdm(predictions_df.iterrows(), total=len(predictions_df)):
+        vid = row['video']
+        frm = int(row['frame'])
+        box_hash = f"{row['xmin']}_{row['ymin']}_{row['xmax']}_{row['ymax']}"
+
+        if vid not in formatted_predictions:
+            formatted_predictions[vid] = {}
+        if frm not in formatted_predictions[vid]:
+            formatted_predictions[vid][frm] = {}
+        if box_hash not in formatted_predictions[vid][frm]:
+            formatted_predictions[vid][frm][box_hash] = {
+                'bbox': [float(row['xmin']) * 682,
+                         float(row['ymin']) * 512,
+                         float(row['xmax']) * 682,
+                         float(row['ymax']) * 512],
+                'confidences': [0.0] * 19
+            }
+
+        action_acar = int(row['action'])   # 0-indexed, range 0..21
+        road_idx = action_class_selection_map[action_acar]
+        if road_idx < 0:
+            continue
+        formatted_predictions[vid][frm][box_hash]['confidences'][road_idx] = float(row['confidence'])
 
     if not os.path.exists(opts.save_pickles_path):
         os.makedirs(opts.save_pickles_path)
 
     print(f"Writing .pkl files to {opts.save_pickles_path}")
 
-    for video_name, video in ann_dict['db'].items():
-        print(video_name)
-        for frame_num, frame_data in tqdm(video['frames'].items()):
-            if not frame_data['annotated']: continue
+    for video_name, frames in formatted_predictions.items():
+        vid_dir = os.path.join(opts.save_pickles_path, video_name)
+        if not os.path.exists(vid_dir):
+            os.makedirs(vid_dir)
 
-            annos = frame_data['annos']
-            
-            if int(frame_num) < 50 or int(frame_num) > 5940: continue
+        for frame_num, boxes in frames.items():
+            n = len(boxes)
+            save_data = np.zeros((n, 23), dtype=np.float32)
+            for i, box_data in enumerate(boxes.values()):
+                save_data[i, 0:4] = box_data['bbox']
+                save_data[i, 4:23] = box_data['confidences']
 
-            save_data = {'main': np.zeros((len(annos), 23))}
-            for i, anno in enumerate(annos.values()):
-                # bbox in terms of proper road image sizing
-                bbox = anno['box']
-                bbox[0] = bbox[0] * 682
-                bbox[1] = bbox[1] * 512
-                bbox[2] = bbox[2] * 682
-                bbox[3] = bbox[3] * 512
+            pkl_path = os.path.join(vid_dir, "%05d.pkl" % frame_num)
+            with open(pkl_path, 'wb') as f:
+                pickle.dump({'main': save_data}, f)
 
-                save_data['main'][i][0:4] = np.array(bbox)
-
-                # action scores in terms of what road eval is concerned with
-                confidences = np.zeros(19)
-                for idx, score in enumerate(anno['action_scores'].values()):
-                    if action_class_selection_map[idx] == -1:
-                        continue
-
-                    confidences[action_class_selection_map[idx]] = score
-
-                save_data['main'][i][4:23] = confidences
-
-            if not os.path.exists(os.path.join(opts.save_pickles_path, video_name)):
-                os.makedirs(os.path.join(opts.save_pickles_path, video_name))
-            with open(f"{opts.save_pickles_path}/{video_name}/%05d.pkl" % int(frame_num), 'wb') as f:
-                pickle.dump(save_data, f)
-    
     print("Done!")
 

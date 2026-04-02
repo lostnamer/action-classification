@@ -135,8 +135,10 @@ def perform_building(args, video_list, epoch):
     for videoname in video_list:
         total_dets = 0
         video_dir = os.path.join(args.det_save_dir, videoname)
-        assert os.path.isdir(
-            video_dir), 'Detection should exist @ ' + video_dir
+        if not os.path.isdir(video_dir):
+            logger.info('No detections for {} (skipping tubes)'.format(videoname))
+            all_paths[videoname] = []
+            continue
         if args.DATASET == 'ucf24':
             dirname = args.tube_save_dir + videoname.split('/')[0]
             if not os.path.isdir(dirname):

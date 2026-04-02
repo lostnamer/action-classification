@@ -31,12 +31,15 @@ import wandb
 from torch.profiler import profile, record_function, ProfilerActivity
 
 def log_artifacts():
+    import os
     results = wandb.Artifact(name = "results", type= "results", description = "results and config files")
     ckpts = wandb.Artifact(name = "models", type = "models", description= "model checkpoints")
-    results.add_dir("./output/text")
-    ckpts.add_dir("./output/saved_models")
-    wandb.log_artifact(results)
-    wandb.log_artifact(ckpts)
+    if os.path.isdir("./output/text"):
+        results.add_dir("./output/text")
+        wandb.log_artifact(results)
+    if os.path.isdir("./output/saved_models"):
+        ckpts.add_dir("./output/saved_models")
+        wandb.log_artifact(ckpts)
     wandb.finish()
 
 
